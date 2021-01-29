@@ -2,7 +2,7 @@
 
 __To build & run a container__
 - (After cloning) docker container run -d --name backend -p 8080:5000 flutterwave-technical-assessment
-- (The containerised app would be available at localhist:8080)
+- (The containerised app would be available at localhost:8080)
 - (To stop the container) docker container stop backend
 - (To re-start container) docker container start backend
 
