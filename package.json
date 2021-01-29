@@ -5,10 +5,14 @@
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
-    "dev": "nodemon app.js"
+    "dev": "nodemon app.js",
+    "heroku postbuild": "NPM_CONFIG_PRODUCTION=false npm install"
+  },
+  "engines": {
+    "node": "v12.18.0"
   },
   "keywords": [],
-  "author": "",
+  "author": "@mosesbenjamin",
   "license": "ISC",
   "dependencies": {
     "express": "^4.17.1",
