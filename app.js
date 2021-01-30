@@ -29,9 +29,11 @@ app.get('/', (req, res) => {
 
 app.post('/validate-rule', (req, res) => {
     const {rule, data} = req.body
+    
 
     // The rule and data fields are required.
     if(rule && data) {
+
         const v = new Validator();
 
         // rule shema
@@ -40,11 +42,39 @@ app.post('/validate-rule', (req, res) => {
             "id": "/Rule",
             "type": "object",
             "properties": {
-                "field": {"type": "string"},
+                "field": {"$ref": "/field"},
                 "condition": {"$ref": "/condition"},
-                "condition_value": {"type": "integer"}
+                "condition_value": {"$ref": "/condition_value"}
             }
         }
+
+        // field
+        const fieldSchema = {
+            "id": "field",
+            "oneOf": [
+                { "type": "integer" },
+                { "type": "string" },
+                { "type": "array" },
+                { "type": "object" }
+              ]
+        }
+
+        // Provide reference to fieldSchema
+        v.addSchema(fieldSchema, '/field');
+
+        // condition_value
+        const conditionValueSchema = {
+            "id": "/condition_value",
+            "oneOf": [
+                { "type": "integer" },
+                { "type": "string" },
+                { "type": "array" },
+                { "type": "object" }
+              ]
+        }
+
+        // Provide reference to conditionValueSchema
+        v.addSchema(conditionValueSchema, '/condition_value');
 
         // The condition to use for validating the rule. Accepted condition values: eq, neq, gt, gte, contains
         const conditionSchema = {
@@ -62,7 +92,7 @@ app.post('/validate-rule', (req, res) => {
 
         // data shema
         // The data field can be any of: a valid JSON object, a valid array, a string
-        const dataShema = {
+        const dataSchema = {
             "oneOf": [
                 { "type": "object" },
                 { "type": "array" },
@@ -71,46 +101,198 @@ app.post('/validate-rule', (req, res) => {
         }
 
         // Validate data field
-        const dataResponse = v.validate(data, dataShema)
+        const dataResponse = v.validate(data, dataSchema)
+
+        const ruleFields = Object.keys(rule)
+
+
+        // The condition to use for validating the rule. Accepted condition values are:
+        if(ruleResponse.errors.length !==0 && ruleResponse.errors[0].property === "instance.condition"){
+            res.status(400).json({
+                "message": "condition is not one of eq,neq,gt,gte,contains",
+                "status": "error",
+                "data": ruleResponse.errors[0].property
+            })
+        }
 
         // The rule field is passed as a number instead of a valid object
-        if(ruleResponse.errors.length !==0){
+        if(ruleFields.length === 0) {
             res.status(400).json({
                 "message": "rule should be an object.",
                 "status": "error",
                 "data": null
-            })
-        }
+              })
+        }    
 
-        //  The data field is of the wrong type
-        if(dataResponse.errors.length !==0){
-            res.status(400).json({
-                "message": "data should be an object, array or a string.",
-                "status": "error",
-                "data": null
-            })
-        }
 
         if (typeof data === 'object'){
 
             if (Array.isArray(data)){
 
                 const filteredData = data.filter(d => d === rule.field)
-                
+
                 if(filteredData.length > 0){
-                    res.status(200).json({
-                        "message": `field ${rule.field} successfully validated.`,
-                        "status": "success",
-                        "data": {
-                        "validation": {
-                            "error": false,
-                            "field": `${rule.field}`,
-                            "field_value": `${filteredData[0]}`,
-                            "condition": `${rule.condition}`,
-                            "condition_value": `${rule.condition_value}`
+                        if(rule.condition === 'gte'){
+                            if (rule.field >= rule.condition_value){
+                                // gte rule is successfully validated
+                                res.status(200).json({
+                                    "message": `field ${rule.field} successfully validated.`,
+                                    "status": "success",
+                                    "data": {
+                                    "validation": {
+                                        "error": false,
+                                        "field": `${rule.field}`,
+                                        "field_value": `${rule.field}`,
+                                        "condition": `${rule.condition}`,
+                                        "condition_value": `${rule.condition_value}`
+                                    }
+                                    }
+                                })
+                            } else {
+                                // The rule validation fails
+                                res.status(400).json({
+                                    "message": `field ${rule.field} failed validation.`,
+                                    "status": "error",
+                                    "data": {
+                                      "validation": {
+                                        "error": true,
+                                        "field": `${rule.field}`,
+                                        "field_value": `${rule.field}`,
+                                        "condition": `${rule.condition}`,
+                                        "condition_value": `${rule.condition_value}`
+                                      }
+                                    }
+                                  })
+                            }   
+                        } else if(rule.condition === 'gt'){
+                            if (rule.field > rule.condition_value){
+                                // gte rule is successfully validated
+                                res.status(200).json({
+                                    "message": `field ${rule.field} successfully validated.`,
+                                    "status": "success",
+                                    "data": {
+                                    "validation": {
+                                        "error": false,
+                                        "field": `${rule.field}`,
+                                        "field_value": `${rule.field}`,
+                                        "condition": `${rule.condition}`,
+                                        "condition_value": `${rule.condition_value}`
+                                    }
+                                    }
+                                })
+                            } else {
+                                // The rule validation fails
+                                res.status(400).json({
+                                    "message": `field ${rule.field} failed validation.`,
+                                    "status": "error",
+                                    "data": {
+                                      "validation": {
+                                        "error": true,
+                                        "field": `${rule.field}`,
+                                        "field_value": `${rule.field}`,
+                                        "condition": `${rule.condition}`,
+                                        "condition_value": `${rule.condition_value}`
+                                      }
+                                    }
+                                  })
+                            }   
+                        } else if(rule.condition === 'eq'){
+                            if (rule.field === rule.condition_value){
+                                // gte rule is successfully validated
+                                res.status(200).json({
+                                    "message": `field ${rule.field} successfully validated.`,
+                                    "status": "success",
+                                    "data": {
+                                    "validation": {
+                                        "error": false,
+                                        "field": `${rule.field}`,
+                                        "field_value": `${rule.field}`,
+                                        "condition": `${rule.condition}`,
+                                        "condition_value": `${rule.condition_value}`
+                                    }
+                                    }
+                                })
+                            } else {
+                                // The rule validation fails
+                                res.status(400).json({
+                                    "message": `field ${rule.field} failed validation.`,
+                                    "status": "error",
+                                    "data": {
+                                      "validation": {
+                                        "error": true,
+                                        "field": `${rule.field}`,
+                                        "field_value": `${rule.field}`,
+                                        "condition": `${rule.condition}`,
+                                        "condition_value": `${rule.condition_value}`
+                                      }
+                                    }
+                                  })
+                            }   
+                        } else if(rule.condition === 'neq'){
+                            if (rule.field !== rule.condition_value){
+                                // gte rule is successfully validated
+                                res.status(200).json({
+                                    "message": `field ${rule.field} successfully validated.`,
+                                    "status": "success",
+                                    "data": {
+                                    "validation": {
+                                        "error": false,
+                                        "field": `${rule.field}`,
+                                        "field_value": `${rule.field}`,
+                                        "condition": `${rule.condition}`,
+                                        "condition_value": `${rule.condition_value}`
+                                    }
+                                    }
+                                })
+                            } else {
+                                // The rule validation fails
+                                res.status(400).json({
+                                    "message": `field ${rule.field} failed validation.`,
+                                    "status": "error",
+                                    "data": {
+                                      "validation": {
+                                        "error": true,
+                                        "field": `${rule.field}`,
+                                        "field_value": `${rule.field}`,
+                                        "condition": `${rule.condition}`,
+                                        "condition_value": `${rule.condition_value}`
+                                      }
+                                    }
+                                  })
+                            }   
+                        }  else if(rule.condition === 'contains') {
+                                if((rule.field).includes(rule.condition_value)){
+                                     // contains rule is successfully validated
+                                    res.status(200).json({
+                                        "message": `field ${rule.field} successfully validated.`,
+                                        "status": "success",
+                                        "data": {
+                                        "validation": {
+                                            "error": false,
+                                            "field": `${rule.field}`,
+                                            "field_value": `${rule.field}`,
+                                            "condition": `${rule.condition}`,
+                                            "condition_value": `${rule.condition_value}`
+                                        }
+                                        }
+                                    })
+                                }  else {
+                                    // The rule validation fails
+                                    res.status(400).json({
+                                        "message": `field ${rule.field} failed validation.`,
+                                        "status": "error",
+                                        "data": {
+                                          "validation": {
+                                            "error": true,
+                                            "field": `${rule.field}`,
+                                            "field_value": `${rule.field}`,
+                                            "condition": `${rule.condition}`,
+                                            "condition_value": `${rule.condition_value}`
+                                          }
+                                        }
+                                      })
+                                }  
                         }
-                        }
-                    })
                 } else {
                         // The field specified in the rule object is missing from the data passed
                         return res.status(400).json({
@@ -267,7 +449,8 @@ app.post('/validate-rule', (req, res) => {
                         }) 
                 } 
             }
-        } else if ( typeof data === 'string') {
+        }
+        if ( typeof data === 'string') {
             if(data !== rule.field){
                 // The field specified in the rule object is missing from the data passed
                 res.status(400).json({
@@ -276,19 +459,100 @@ app.post('/validate-rule', (req, res) => {
                     "data": null
                 })   
             } else {
-                res.status(200).json({
-                    "message": `field ${rule.field} successfully validated.`,
-                    "status": "success",
-                    "data": {
-                    "validation": {
-                        "error": false,
-                        "field": `${rule.field}`,
-                        "field_value": `${data}`,
-                        "condition": `${rule.condition}`,
-                        "condition_value": `${rule.condition_value}`
+                if(rule.condition === 'contains'){
+                    if(rule.field.includes(rule.condition_value)){
+                        res.status(200).json({
+                            "message": `field ${rule.field} successfully validated.`,
+                            "status": "success",
+                            "data": {
+                            "validation": {
+                                "error": false,
+                                "field": `${rule.field}`,
+                                "field_value": `${data}`,
+                                "condition": `${rule.condition}`,
+                                "condition_value": `${rule.condition_value}`
+                            }
+                            }
+                        })
+                    } else {
+                         // The rule validation fails
+                         res.status(400).json({
+                            "message": `field ${rule.field} failed validation.`,
+                            "status": "error",
+                            "data": {
+                              "validation": {
+                                "error": true,
+                                "field": `${rule.field}`,
+                                "field_value": `${rule.field}`,
+                                "condition": `${rule.condition}`,
+                                "condition_value": `${rule.condition_value}`
+                              }
+                            }
+                          })
                     }
-                    }
-                })
+                } else if (rule.condition === 'eq') {
+                    if(rule.field === rule.condition_value) {
+                        res.status(200).json({
+                            "message": `field ${rule.field} successfully validated.`,
+                            "status": "success",
+                            "data": {
+                            "validation": {
+                                "error": false,
+                                "field": `${rule.field}`,
+                                "field_value": `${data}`,
+                                "condition": `${rule.condition}`,
+                                "condition_value": `${rule.condition_value}`
+                            }
+                            }
+                        })
+                    } else {
+                        // The rule validation fails
+                        res.status(400).json({
+                           "message": `field ${rule.field} failed validation.`,
+                           "status": "error",
+                           "data": {
+                             "validation": {
+                               "error": true,
+                               "field": `${rule.field}`,
+                               "field_value": `${rule.field}`,
+                               "condition": `${rule.condition}`,
+                               "condition_value": `${rule.condition_value}`
+                             }
+                           }
+                         })
+                   }
+                } else if (rule.condition === 'neq') {
+                    if(rule.field !== rule.condition_value) {
+                        res.status(200).json({
+                            "message": `field ${rule.field} successfully validated.`,
+                            "status": "success",
+                            "data": {
+                            "validation": {
+                                "error": false,
+                                "field": `${rule.field}`,
+                                "field_value": `${data}`,
+                                "condition": `${rule.condition}`,
+                                "condition_value": `${rule.condition_value}`
+                            }
+                            }
+                        })
+                    } else {
+                        // The rule validation fails
+                        res.status(400).json({
+                           "message": `field ${rule.field} failed validation.`,
+                           "status": "error",
+                           "data": {
+                             "validation": {
+                               "error": true,
+                               "field": `${rule.field}`,
+                               "field_value": `${rule.field}`,
+                               "condition": `${rule.condition}`,
+                               "condition_value": `${rule.condition_value}`
+                             }
+                           }
+                         })
+                   }
+                }
             }
         }
  
